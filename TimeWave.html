@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<!-- saved from url=(0062)file:///C:/Users/MSI/OneDrive/Desktop/YAZILIM/Timer/timer.html -->
+<html lang="tr"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeWave</title>
+<style>
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #a18cd1, #fbc2eb);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+@keyframes gradientBG {
+    0% {background-position: 0% 50%;}
+    50% {background-position: 100% 50%;}
+    100% {background-position: 0% 50%;}
+}
+
+.container {
+    background: rgba(255,255,255,0.15);
+    padding: 30px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    text-align: center;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+}
+
+h1 {
+    margin-bottom: 20px;
+    color: #fff;
+    text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+}
+
+.mode-selector, #timerSettings {
+    margin-bottom: 20px;
+}
+
+select, input[type="number"], button {
+    padding: 8px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+}
+
+#timerSettings button {
+    font-size: 20px;
+    font-weight: bold;
+    width: 40px;
+}
+
+#display-container {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    margin: 20px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#display {
+    font-size: 64px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(255,255,255,0.7);
+    position: absolute;
+    cursor: pointer;
+}
+
+#progress-circle {
+    transform: rotate(-90deg);
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.controls button {
+    padding: 12px 25px;
+    margin: 5px;
+    border: none;
+    border-radius: 15px;
+    font-size: 18px;
+    cursor: pointer;
+    transition: 0.3s;
+    background: linear-gradient(45deg, #6a11cb, #2575fc);
+    color: #fff;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.controls button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⏱️ TİMER</h1>
+
+    <div class="mode-selector">
+        <label for="mode">Mod:</label>
+        <select id="mode">
+            <option value="pomodoro">Pomodoro</option>
+            <option value="timer">Geri Sayım</option>
+            <option value="stopwatch">Kronometre</option>
+        </select>
+    </div>
+
+    <div id="timerSettings">
+        <button id="decrease">-</button>
+        <input type="number" id="minutes" value="25" min="1">
+        <button id="increase">+</button>
+    </div>
+
+    <div id="display-container">
+        <div id="display">25:00</div>
+        <svg id="progress-circle" width="250" height="250">
+            <circle cx="125" cy="125" r="110" stroke-width="15" stroke="#fff" fill="none" opacity="0.2"></circle>
+            <circle cx="125" cy="125" r="110" stroke-width="15" stroke="#fff" fill="none" stroke-dasharray="691" stroke-dashoffset="691" style="stroke-dashoffset: 0;"></circle>
+        </svg>
+    </div>
+
+    <div class="controls">
+        <button id="start">Başlat</button>
+        <button id="pause">Duraklat</button>
+        <button id="reset">Sıfırla</button>
+    </div>
+
+    <audio id="alarmSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+</div>
+
+<script>
+let modeSelect = document.getElementById('mode');
+let display = document.getElementById('display');
+let minutesInput = document.getElementById('minutes');
+let startBtn = document.getElementById('start');
+let pauseBtn = document.getElementById('pause');
+let resetBtn = document.getElementById('reset');
+let decreaseBtn = document.getElementById('decrease');
+let increaseBtn = document.getElementById('increase');
+let alarm = document.getElementById('alarmSound');
+let progressCircle = document.querySelector('#progress-circle circle:nth-child(2)');
+
+let timer;
+let totalSeconds = 0;
+let running = false;
+let pomodoroWork = 25 * 60;
+let pomodoroBreak = 5 * 60;
+let isWorkPhase = true;
+
+function formatTime(sec){
+  let m = Math.floor(sec / 60);
+  let s = sec % 60;
+  return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+function updateDisplay(){
+  display.textContent = formatTime(totalSeconds);
+  if(totalSeconds > 0){
+    let dashOffset = 691 - (691 * totalSeconds) / (modeSelect.value === 'pomodoro' ? (isWorkPhase ? pomodoroWork : pomodoroBreak) : totalSeconds);
+    progressCircle.style.strokeDashoffset = dashOffset;
+  }
+}
+
+function startTimer(){
+  if(running) return;
+  running = true;
+
+  timer = setInterval(() => {
+    if(modeSelect.value === 'stopwatch'){
+      totalSeconds++;
+    } else {
+      totalSeconds--;
+      if(totalSeconds <= 0){
+        alarm.play();
+        if(modeSelect.value === 'pomodoro'){
+          isWorkPhase = !isWorkPhase;
+          totalSeconds = isWorkPhase ? pomodoroWork : pomodoroBreak;
+        } else {
+          clearInterval(timer);
+          running = false;
+          return;
+        }
+      }
+    }
+    updateDisplay();
+  },1000);
+}
+
+function pauseTimer(){
+  clearInterval(timer);
+  running = false;
+}
+
+function resetTimer(){
+  clearInterval(timer);
+  running = false;
+  isWorkPhase = true;
+  if(modeSelect.value === 'pomodoro') totalSeconds = pomodoroWork;
+  else totalSeconds = parseInt(minutesInput.value) * 60 || 0;
+  updateDisplay();
+}
+
+display.addEventListener('click', () => {
+  running ? pauseTimer() : startTimer();
+});
+
+increaseBtn.addEventListener('click', () => {
+  let current = parseInt(minutesInput.value);
+  minutesInput.value = current + 1;
+
+  if(modeSelect.value === 'pomodoro'){
+    pomodoroWork = (current + 1) * 60;
+    if(isWorkPhase) totalSeconds = pomodoroWork;
+  } else {
+    totalSeconds = (current + 1) * 60;
+  }
+  updateDisplay();
+});
+
+decreaseBtn.addEventListener('click', () => {
+  let current = parseInt(minutesInput.value);
+  let newVal = Math.max(1, current - 1);
+  minutesInput.value = newVal;
+
+  if(modeSelect.value === 'pomodoro'){
+    pomodoroWork = newVal * 60;
+    if(isWorkPhase) totalSeconds = pomodoroWork;
+  } else {
+    totalSeconds = newVal * 60;
+  }
+  updateDisplay();
+});
+
+modeSelect.addEventListener('change', () => {
+  isWorkPhase = true;
+  if(modeSelect.value === 'pomodoro') totalSeconds = pomodoroWork;
+  else if(modeSelect.value === 'timer') totalSeconds = parseInt(minutesInput.value) * 60;
+  else if(modeSelect.value === 'stopwatch') totalSeconds = 0;
+  updateDisplay();
+});
+
+startBtn.addEventListener('click', startTimer);
+pauseBtn.addEventListener('click', pauseTimer);
+resetBtn.addEventListener('click', resetTimer);
+
+totalSeconds = pomodoroWork;
+updateDisplay();
+</script>
+
+
+
+</body></html>
